@@ -1,4 +1,7 @@
 🕰️ Life Countdown – A Gamified Death Clock Website
+
+
+
 Welcome to Life Countdown, a unique, interactive, and gamified death clock web app that reminds you to live life meaningfully.
 
 🌟 What is This?
