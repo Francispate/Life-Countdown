@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Life Countdown</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Orbitron', 'Segoe UI', sans-serif;
+      background: #000;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+      border-radius: 5px;
+      border: none;
+    }
+
+    button {
+      background-color: crimson;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(220, 20, 60, 0.7);
+    }
+
+    #countdown, #quote, #progress-container {
+      margin-top: 20px;
+    }
+
+    #progress-bar {
+      background-color: #333;
+      border-radius: 15px;
+      height: 30px;
+      width: 80%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, crimson, orangered);
+      width: 0%;
+      text-align: center;
+      line-height: 30px;
+      color: #fff;
+      transition: width 0.5s ease;
+    }
+
+    .grid-label {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #aaa;
+    }
+
+    #life-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(10px, 1fr));
+      gap: 2px;
+      margin: 20px auto;
+      max-width: 90%;
+      position: relative;
+    }
+
+    .week-box {
+      width: 10px;
+      height: 10px;
+      background-color: #333;
+      border-radius: 2px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+
+    .week-box.filled {
+      background-color: crimson;
+    }
+    
+    .week-box:hover {
+      transform: scale(1.5);
+      box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+      z-index: 10;
+    }
+    
+    .week-box:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 150%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 20;
+    }
+
+    #audio-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #222;
+      padding: 8px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    canvas#bg-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+    }
+
+    #greeting {
+      color: cyan;
+    }
+
+    /* Landing page styles */
+    #landing-page {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 100;
+      transition: opacity 1s ease;
+    }
+
+    #landing-page h1 {
+      font-size: 3rem;
+      margin-bottom: 30px;
+      background: linear-gradient(90deg, #ff0080, #ff8c00, #ffff00);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+    }
+
+    #landing-page p {
+      font-size: 1.2rem;
+      max-width: 600px;
+      margin-bottom: 40px;
+      color: #ddd;
+      line-height: 1.6;
+    }
+
+    #start-btn {
+      padding: 15px 40px;
+      font-size: 1.2rem;
+      background: linear-gradient(45deg, #ff0080, #ff8c00);
+      border: none;
+      border-radius: 30px;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: pulse-btn 2s infinite;
+    }
+
+    #start-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.7);
+    }
+
+    @keyframes pulse-btn {
+      0% { box-shadow: 0 0 0 0 rgba(255, 0, 128, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(255, 0, 128, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 0, 128, 0); }
+    }
+
+    #app-container {
+      opacity: 0;
+      transition: opacity 1s ease;
+      pointer-events: none;
+    }
+
+    /* Responsive styles */
+    @media (max-width: 600px) {
+      #progress-bar {
+        width: 90%;
+      }
+
+      .week-box {
+        width: 8px;
+        height: 8px;
+      }
+      
+      #landing-page h1 {
+        font-size: 2rem;
+      }
+      
+      #landing-page p {
+        font-size: 1rem;
+        padding: 0 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Landing Page -->
+  <div id="landing-page">
+    <h1>⏳ LIFE COUNTDOWN ⏳</h1>
+    <p>Visualize the precious time you have left on this planet. Every moment counts. Are you ready to see how your life is unfolding?</p>
+    <button id="start-btn">BEGIN JOURNEY</button>
+  </div>
+
+  <!-- Main App -->
+  <div id="app-container">
+    <div id="audio-toggle">🔊</div>
+
+    <h1>🚀 Life Countdown</h1>
+    <h2 id="greeting"></h2>
+    <p>Enter your birthdate and expected age:</p>
+
+    <input type="date" id="birthdate" />
+    <input type="number" id="deathAge" placeholder="Expected Age (default 75)" />
+    <br />
+    <button onclick="startCountdown()">Start Countdown</button>
+
+    <div id="countdown"></div>
+
+    <div id="progress-container">
+      <div id="progress-bar">
+        <div id="progress-fill">0%</div>
+      </div>
+    </div>
+
+    <div id="quote">"Time is your most valuable currency. Spend it wisely."</div>
+    <div class="grid-label">Each box = 1 week of life</div>
+    <div id="life-grid"></div>
+  </div>
+
+  <audio id="bg-music" src="ambient.mp3" loop></audio>
+
+  <script>
+    let intervalId;
+    let appState = "landing"; // Track the current app state: "landing" or "app"
+
+    const bgMusic = document.getElementById("bg-music");
+    const landingPage = document.getElementById("landing-page");
+    const appContainer = document.getElementById("app-container");
+
+    // Check if there's a stored state in sessionStorage
+    if(sessionStorage.getItem("lifeCountdownState") === "app") {
+      showApp();
+    } else {
+      showLanding();
+    }
+
+    // Handle browser back button and page reload
+    window.addEventListener('popstate', function(event) {
+      if (event.state && event.state.page === "app") {
+        showApp();
+      } else {
+        showLanding();
+      }
+    });
+
+    // If the user refreshes the page, maintain the current state
+    window.addEventListener('beforeunload', function() {
+      sessionStorage.setItem("lifeCountdownState", appState);
+    });
+
+    function showLanding() {
+      appState = "landing";
+      landingPage.style.display = "flex";
+      landingPage.style.opacity = "1";
+      appContainer.style.opacity = "0";
+      appContainer.style.pointerEvents = "none";
+      
+      // Add state to history
+      history.pushState({page: "landing"}, "Landing Page", "?page=landing");
+      
+      // Store state in sessionStorage
+      sessionStorage.setItem("lifeCountdownState", "landing");
+      
+      // Pause background music if it's playing
+      if (!bgMusic.paused) {
+        bgMusic.pause();
+        document.getElementById("audio-toggle").innerText = "🔇";
+      }
+    }
+
+    function showApp() {
+      appState = "app";
+      landingPage.style.opacity = "0";
+      appContainer.style.opacity = "1";
+      appContainer.style.pointerEvents = "auto";
+      
+      // Add state to history
+      history.pushState({page: "app"}, "App Page", "?page=app");
+      
+      // Store state in sessionStorage
+      sessionStorage.setItem("lifeCountdownState", "app");
+      
+      // Remove landing page from DOM after transition
+      setTimeout(() => {
+        landingPage.style.display = "none";
+      }, 1000);
+      
+      // Start background music
+      bgMusic.play();
+    }
+
+    // Landing page transition
+    document.getElementById("start-btn").addEventListener("click", showApp);
+
+    const quotes = [
+      "Time is your most valuable currency. Spend it wisely.",
+      "Every second is a chance to turn it all around.",
+      "Don't count the days, make the days count.",
+      "The way you spend your days is the way you spend your life.",
+      "Live as if you'll die tomorrow. Learn as if you'll live forever.",
+      "Your future is created by what you do today, not tomorrow."
+    ];
+
+    document.getElementById("audio-toggle").onclick = () => {
+      if (bgMusic.paused) {
+        bgMusic.play();
+        document.getElementById("audio-toggle").innerText = "🔊";
+      } else {
+        bgMusic.pause();
+        document.getElementById("audio-toggle").innerText = "🔇";
+      }
+    };
+
+    function startCountdown() {
+      const birthdate = document.getElementById("birthdate").value;
+      const deathAge = parseInt(document.getElementById("deathAge").value) || 75;
+
+      if (!birthdate) {
+        alert("Please enter your birthdate.");
+        return;
+      }
+
+      const birth = new Date(birthdate);
+      const death = new Date(birth);
+      death.setFullYear(death.getFullYear() + deathAge);
+      const now = new Date();
+
+      const totalWeeks = deathAge * 52;
+      const livedWeeks = Math.floor((now - birth) / (1000 * 60 * 60 * 24 * 7));
+
+      const grid = document.getElementById("life-grid");
+      grid.innerHTML = "";
+
+      for (let i = 0; i < totalWeeks; i++) {
+        const box = document.createElement("div");
+        box.classList.add("week-box");
+        
+        // Add appropriate tooltip based on whether this week is past or future
+        if (i < livedWeeks) {
+          box.classList.add("filled");
+          box.setAttribute("data-tooltip", "I survived this week");
+        } else {
+          box.setAttribute("data-tooltip", "Future is waiting");
+        }
+        
+        grid.appendChild(box);
+      }
+
+      document.getElementById("greeting").innerText = `🌟 Welcome, time traveler! Let's make every moment count.`;
+
+      if (intervalId) clearInterval(intervalId);
+
+      let quoteIndex = 0;
+      setInterval(() => {
+        quoteIndex = (quoteIndex + 1) % quotes.length;
+        document.getElementById("quote").innerText = `"${quotes[quoteIndex]}"`;
+      }, 15000);
+
+      function updateCountdown() {
+        const now = new Date();
+        let timeLeft = death - now;
+
+        if (timeLeft <= 0) {
+          document.getElementById("countdown").innerText = "💀 Time's up.";
+          document.getElementById("progress-fill").style.width = "100%";
+          document.getElementById("progress-fill").innerText = "100%";
+          clearInterval(intervalId);
+          return;
+        }
+
+        const seconds = Math.floor(timeLeft / 1000) % 60;
+        const minutes = Math.floor(timeLeft / (1000 * 60)) % 60;
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60)) % 24;
+        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24)) % 7;
+        const weeks = Math.floor(timeLeft / (1000 * 60 * 60 * 24 * 7)) % 4;
+        const months = Math.floor(timeLeft / (1000 * 60 * 60 * 24 * 30.4375)) % 12;
+        const years = Math.floor(timeLeft / (1000 * 60 * 60 * 24 * 365.25));
+
+        const totalLifespan = death - birth;
+        const lived = now - birth;
+        const percentLived = (lived / totalLifespan) * 100;
+        const rounded = percentLived.toFixed(2);
+
+        document.getElementById("countdown").innerText =
+          `🧓 Estimated Death Date: ${death.toDateString()}\n\n` +
+          `⏳ Time Left: ${years}y ${months}m ${weeks}w ${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+        document.getElementById("progress-fill").style.width = `${rounded}%`;
+        document.getElementById("progress-fill").innerText = `${rounded}%`;
+      }
+
+      updateCountdown();
+      intervalId = setInterval(updateCountdown, 1000);
+    }
+
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const stars = Array.from({ length: 150 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      radius: Math.random() * 2,
+      speed: 0.2 + Math.random() * 0.5,
+    }));
+
+    function animateStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      for (let star of stars) {
+        star.y += star.speed;
+        if (star.y > canvas.height) star.y = 0;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      requestAnimationFrame(animateStars);
+    }
+
+    // Initialize the app based on URL parameter if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const pageParam = urlParams.get('page');
+    if (pageParam === 'app') {
+      showApp();
+    } else {
+      // Push initial state to history
+      history.replaceState({page: "landing"}, "Landing Page", "?page=landing");
+    }
+
+    // Handle window resize for canvas
+    window.addEventListener('resize', function() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    animateStars();
+  </script>
+</body>
+</html>
